@@ -1,0 +1,4 @@
+#ifndef BITWISE_PIXEL_HPP
+#define BITWISE_PIXEL_HPP
+    #define MAX_SHIFT 9
+#endif // BITWISE_PIXEL_HPP

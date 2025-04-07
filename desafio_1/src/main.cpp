@@ -35,13 +35,18 @@
 #include <iostream>
 #include <QCoreApplication>
 #include <QImage>
+#include "include/main.hpp"
+#include "include/bitwise_pixel.hpp"
 
 using namespace std;
-unsigned char* loadPixels(QString input, int &width, int &height);
-bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
-unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
 
 int main()
+{
+    saludar();
+    return 0;
+}
+
+int app_prueba()
 {
     // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
     QString archivoEntrada = "I_O.bmp";
