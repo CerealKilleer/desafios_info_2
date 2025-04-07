@@ -1,0 +1,38 @@
+# Archivos de compilación
+*.o
+*.obj
+*.so
+*.a
+*.lib
+*.dll
+*.exe
+*.out
+
+# Archivos de Qt Creator
+*.autosave
+*.pro.user
+*.qbs.user
+*.pro.user.*
+*.qbs.user.*
+*.qmlproject.user
+*.qmlproject.user.*
+
+# Archivos de CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+build/
+build-*/
+
+# Archivos de Qt Creator generados
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de log
+*.log
