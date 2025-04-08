@@ -1,5 +1,7 @@
 #include <iostream>
 #include <stdint.h>
+#include <cassert>
+#include "include/bitwise_pixel.hpp"
 
 using namespace std;
 
@@ -8,6 +10,31 @@ static inline uint8_t shift_left_byte(uint8_t, uint8_t);
 static inline uint8_t shift_right_byte(uint8_t, uint8_t);
 static inline uint8_t rotate_left_byte(uint8_t, uint8_t);
 static inline uint8_t rotate_right_byte(uint8_t, uint8_t);
+
+
+void pruebas_bitwise_byte_ops(void)
+{
+    uint8_t a = 0b10101010;
+    uint8_t b = 0b11001100;
+    uint8_t n = 3;
+
+    assert(xor_byte(a, b) == 0b01100110);
+
+    assert(shift_left_byte(a, n) == 0b01010000);
+
+    assert(shift_right_byte(b, n) == 0b00011001);
+
+    assert(rotate_left_byte(a, n) == 0b01010101);
+
+    assert(rotate_right_byte(b, n) == 0b10011001);
+
+    assert(rotate_right_byte(a, 9) == 0b01010101);
+
+    assert(rotate_left_byte(b, 10) == 0b00110011);
+
+    cout << "Todas las pruebas superadas" << endl;
+
+}
 
 static inline uint8_t xor_byte(uint8_t byte_1, uint8_t byte_2)
 {

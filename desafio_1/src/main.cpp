@@ -42,7 +42,7 @@ using namespace std;
 
 int main()
 {
-    saludar();
+    pruebas_bitwise_byte_ops();
     return 0;
 }
 
