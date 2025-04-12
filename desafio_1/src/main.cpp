@@ -37,6 +37,7 @@
 #include "include/bitwise_pixel.hpp"
 #include "include/process_data.hpp"
 #include "include/constants.hpp"
+
 using namespace std;
 
 int main()
@@ -44,8 +45,6 @@ int main()
     probar_operaciones();
     return 0;
 }
-
-
 
 
 

@@ -72,7 +72,8 @@ void probar_operaciones()
     int width = 0;
     int height = 0;
 
-    uint8_t *reversed_mask = get_reversed_mask("M2.txt", "M.bmp", seed, num_pixels);
+    uint8_t *mask_data = loadPixels("M.bmp", width, height);
+    uint8_t *reversed_mask = get_reversed_mask("M2.txt", mask_data, seed, num_pixels);
     uint8_t *img_data = loadPixels("P3.bmp", width, height);
     uint8_t *img_noisy_data = loadPixels("I_M.bmp", width, height);
 
@@ -81,15 +82,17 @@ void probar_operaciones()
 
     cout << "Hamming para XOR = " << hamm << endl;
 
+    delete[] mask_data;
     delete[] reversed_mask;
     delete[] img_data;
     delete[] img_noisy_data;
+    mask_data = nullptr;
     reversed_mask = nullptr;
     img_data = nullptr;
     img_noisy_data = nullptr;
 }
 
-uint8_t *get_reversed_mask(const char *path_masking_data, const QString path_mask, int &seed, int &n_pixels)
+uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_data, int &seed, int &n_pixels)
 {
     /**
      * @brief Recupera la máscara original aplicada sobre una imagen usando una semilla y una secuencia de enmascaramiento.
@@ -98,14 +101,12 @@ uint8_t *get_reversed_mask(const char *path_masking_data, const QString path_mas
      * y luego utiliza esa información para revertir el proceso de enmascaramiento aplicado sobre una imagen de máscara.
      *
      * @param path_masking_data Ruta del archivo que contiene la semilla y los datos de enmascaramiento.
-     * @param path_mask Ruta de la imagen de máscara enmascarada (formato BMP u otro compatible).
+     * @param mask_data Ruta de la imagen de máscara (formato BMP u otro compatible).
      * @param seed Referencia a una variable donde se almacenará la semilla leída desde el archivo de enmascaramiento.
      * @param n_pixels Referencia a una variable donde se almacenará la cantidad de píxeles afectados por la máscara.
      * @return Puntero a un arreglo de uint8_t que representa la máscara original (recuperada). Debe ser liberado por el llamador con delete[].
      *         Retorna nullptr si ocurre algún error durante la lectura de archivos o en el proceso de reversión.
      */
-    int width = 0;
-    int high = 0;
 
     unsigned int *masking_data = loadSeedMasking(path_masking_data, seed, n_pixels);
 
@@ -114,21 +115,10 @@ uint8_t *get_reversed_mask(const char *path_masking_data, const QString path_mas
         return nullptr;
     }
 
-    uint8_t *mask_data = loadPixels(path_mask, width, high);
-
-    if (mask_data == nullptr) {
-        cout << "Error leyendo la imagen máscara" << endl;
-        delete[] masking_data;
-        masking_data = nullptr;
-        return nullptr;
-    }
-
     uint8_t *reversed_mask = reverse_mask(masking_data, mask_data, n_pixels);
 
     delete[] masking_data;
-    delete[] mask_data;
     masking_data = nullptr;
-    mask_data = nullptr;
 
     if (reversed_mask == nullptr) {
         cout << "Ocurió un error recuperando la máscara" << endl;
