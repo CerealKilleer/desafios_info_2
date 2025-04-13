@@ -1,11 +1,20 @@
 #include <stdint.h>
 #include <fstream>
 #include <iostream>
+#include <QCoreApplication>
+#include <QImage>
 #include "include/process_data.hpp"
 #include "include/bitwise_pixel.hpp"
 #include "include/constants.hpp"
 
 using namespace std;
+
+static uint32_t aplicar_operaciones(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
+                                    const uint32_t seed, const uint32_t num_pixels, uint8_t &op_code);
+static uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_data, uint32_t &seed, uint32_t &n_pixels);
+static uint8_t *reverse_mask(const uint32_t *bytes_masked, const uint8_t *mask, const uint32_t size);
+static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
+                               const uint16_t width, const uint16_t hight, const uint8_t op, const uint8_t n);
 
 /*
 int app_prueba()
@@ -64,35 +73,187 @@ int app_prueba()
 }
 */
 
-
-void probar_operaciones()
+void procesar_imagenes(uint16_t n)
 {
-    int seed = 0;
-    int num_pixels = 0;
-    int width = 0;
-    int height = 0;
+    //Cargar la imagen máscara
+    uint16_t img_width = 0;
+    uint16_t img_height = 0;
+    uint16_t mask_width = 0;
+    uint16_t mask_height = 0;
+    uint16_t img_noisy_width = 0;
+    uint16_t img_noisy_height = 0;
+    uint8_t op_code = 0;
+    uint8_t op_n = 0;
 
-    uint8_t *mask_data = loadPixels("M.bmp", width, height);
-    uint8_t *reversed_mask = get_reversed_mask("M2.txt", mask_data, seed, num_pixels);
-    uint8_t *img_data = loadPixels("P3.bmp", width, height);
-    uint8_t *img_noisy_data = loadPixels("I_M.bmp", width, height);
+    uint8_t *mask_data = loadPixels("M.bmp", mask_width, mask_height);
 
-    uint32_t hamm = validate_xor(img_data, img_noisy_data,
-                                 reversed_mask, seed, num_pixels);
+    if (mask_data == nullptr) {
+        cout << "No se pudo leer el archivo de máscara M.bmp" << endl;
+        return;
+    }
 
-    cout << "Hamming para XOR = " << hamm << endl;
+    uint8_t *img_noisy_data = loadPixels("I_M.bmp", img_noisy_width, img_noisy_height);
 
+    if (img_noisy_data == nullptr) {
+        cout << "No se pudo leer la imagen de entropía I_M.bmp" << endl;
+        delete[] mask_data;
+        return;
+    }
+
+    uint8_t *img_data = loadPixels("I_D.bmp", img_width, img_height);
+
+    if (img_data == nullptr) {
+        cout << "Error abriendo I_D.bmp" << endl;
+        delete[] mask_data;
+        delete[] img_noisy_data;
+        return;
+    }
+
+    if ((img_width != img_noisy_width) || (img_height != img_noisy_height)) {
+        cout << "La imagen objetivo y la imagen de entropía no tienen las mismas dimensiones" << endl;
+        delete[] mask_data;
+        delete[] img_noisy_data;
+        delete[] img_data;
+        return;
+    }
+
+    //Se aplicarán las n transformaciones
+    for (int32_t i=n; i > 0; i--) {
+        //Variables para el archivo de enmascaramiento
+        uint32_t seed = 0;
+        uint32_t num_pixels = 0;
+        //Se lee el archivo M(n-1).txt
+        QByteArray masked_data_path = "M" + QByteArray::number(i-1) + ".txt";
+
+        //Se aplica el desenmascaramiento
+        uint8_t *reversed_mask = get_reversed_mask(masked_data_path.data(), mask_data, seed, num_pixels);
+        if (reversed_mask == nullptr)
+            break;
+
+        if ((num_pixels > (img_width*img_height))
+            || num_pixels != (mask_width*mask_height)) {
+
+            cout << "La imagen máscara y el archivo de máscara son inconsistentes" << endl;
+            delete[] reversed_mask;
+            break;
+        }
+
+        op_n = aplicar_operaciones(i, img_data, img_noisy_data, reversed_mask, seed, num_pixels, op_code);
+        reverse_operations(img_data, img_noisy_data, img_width, img_height, op_code, op_n);
+
+        delete[] reversed_mask;
+    }
+
+    exportImage(img_data, img_width, img_height, "I_O.bmp");
     delete[] mask_data;
-    delete[] reversed_mask;
-    delete[] img_data;
     delete[] img_noisy_data;
-    mask_data = nullptr;
-    reversed_mask = nullptr;
-    img_data = nullptr;
-    img_noisy_data = nullptr;
+    delete[] img_data;
 }
 
-uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_data, int &seed, int &n_pixels)
+static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
+                               const uint16_t width, const uint16_t hight, const uint8_t op, const uint8_t n)
+{
+    switch(op) {
+    case XOR_OP:
+        apply_complete_xor(img_data, img_noisy_data, width, hight);
+        break;
+    case ROR_OP:
+        apply_complete_rol(img_data, n, width, hight);
+        break;
+    case ROL_OP:
+        apply_complete_ror(img_data, n, width, hight);
+        break;
+    case SHR_OP:
+        apply_complete_shl(img_data, n, width, hight);
+        break;
+    case SHL_OP:
+        apply_complete_shr(img_data, n, width, hight);
+        break;
+    default:
+        cout << "Valor de operación desconocido" << endl;
+    }
+}
+
+static uint32_t aplicar_operaciones(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
+                                    const uint32_t seed, const uint32_t num_pixels, uint8_t &op_code)
+{
+    uint32_t max_op_sim = 0;
+    uint32_t op_sim = 0;
+    uint8_t op_n = 0;
+
+    //Aplicar test para XOR
+    max_op_sim = validate_xor(img_data, img_noisy, reversed_mask, seed, num_pixels);
+
+    if (max_op_sim == MAX_SIMILARITY) {
+        cout << "La operación #" << op << " fue: " << "XOR" << endl;
+        op_code = XOR_OP;
+        return DUMMY_N;
+    }
+
+    //Aplicar test para ROR
+    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
+        op_sim = validate_ror(img_data, reversed_mask, seed, num_pixels, i);
+        if (op_sim == MAX_SIMILARITY) {
+            cout << "La operación #" << op << " fue: " << "Rotacion a derecha de " << (uint32_t)i << " bits" << endl;
+            op_code = ROR_OP;
+            return i;
+        } else if (op_sim < max_op_sim) {
+            op_code = ROR_OP;
+            op_n = i;
+        }
+    }
+
+    //Aplicar test para ROL
+    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
+        op_sim = validate_rol(img_data, reversed_mask, seed, num_pixels, i);
+        if (op_sim == MAX_SIMILARITY) {
+            cout << "La operación #" << op << " fue: " << "Rotacion a izquierda de " << (uint32_t)i << " bits" << endl;
+            op_code = ROL_OP;
+            return i;
+        } else if (op_sim < max_op_sim) {
+            op_code = ROL_OP;
+            op_n = i;
+        }
+    }
+
+    //Aplicar test para SHIFT_L
+    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
+        op_sim = validate_shl(img_data, reversed_mask, seed, num_pixels, i);
+        if (op_sim == MAX_SIMILARITY) {
+            cout << "La operación #" << op << " fue: " << "Desplazamiento a izquierda de " << (uint32_t)i << " bits" << endl;
+            op_code = SHL_OP;
+            return i;
+        } else if (op_sim < max_op_sim) {
+            op_code = SHL_OP;
+            op_n = i;
+        }
+    }
+
+    //Aplicar test para SHIFT_R
+    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
+        op_sim = validate_shr(img_data, reversed_mask, seed, num_pixels, i);
+        if (op_sim == MAX_SIMILARITY) {
+            cout << "La operación #" << op << " fue: " << "Desplazamiento a derecha de " << (uint32_t)i << " bits" << endl;
+            op_code = SHR_OP;
+            return i;
+        } else if (op_sim < max_op_sim) {
+            op_code = SHR_OP;
+            op_n = i;
+        }
+    }
+
+    switch(op_code) {
+    case SHL_OP:
+        cout << "Operación de máxima similitud: " << "Desplazamiento a izquierda de: " << op_n << " bits" << endl;
+        break;
+    case SHR_OP:
+        cout << "Operación de máxima similitud: " << "Desplazamiento a derecha de: " << op_n << " bits" << endl;
+        break;
+    }
+    return op_n;
+}
+
+static uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_data, uint32_t &seed, uint32_t &n_pixels)
 {
     /**
      * @brief Recupera la máscara original aplicada sobre una imagen usando una semilla y una secuencia de enmascaramiento.
@@ -118,7 +279,6 @@ uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_da
     uint8_t *reversed_mask = reverse_mask(masking_data, mask_data, n_pixels);
 
     delete[] masking_data;
-    masking_data = nullptr;
 
     if (reversed_mask == nullptr) {
         cout << "Ocurió un error recuperando la máscara" << endl;
@@ -128,7 +288,7 @@ uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_da
     return reversed_mask;
 }
 
-uint8_t *reverse_mask(const uint32_t *bytes_masked, const uint8_t *mask, const int size)
+static uint8_t *reverse_mask(const uint32_t *bytes_masked, const uint8_t *mask, const uint32_t size)
 {
     /**
      * @brief Invierte el enmascaramiento aplicado a una imagen RGB.
@@ -158,7 +318,8 @@ uint8_t *reverse_mask(const uint32_t *bytes_masked, const uint8_t *mask, const i
     return reversed_mask;
 }
 
-unsigned char* loadPixels(QString input, int &width, int &height){
+unsigned char* loadPixels(QString input, uint16_t &width, uint16_t &height)
+{
     /*
      * @brief Carga una imagen BMP desde un archivo y extrae los datos de píxeles en formato RGB.
      *
@@ -209,7 +370,8 @@ unsigned char* loadPixels(QString input, int &width, int &height){
     return pixelData;
 }
 
-bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida){
+bool exportImage(unsigned char* pixelData, uint16_t width, uint16_t height, QString archivoSalida)
+{
     /*
      * @brief Exporta una imagen en formato BMP a partir de un arreglo de píxeles en formato RGB.
      *
@@ -254,7 +416,8 @@ bool exportImage(unsigned char* pixelData, int width,int height, QString archivo
 
 }
 
-unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels){
+unsigned int* loadSeedMasking(const char* nombreArchivo, uint32_t &seed, uint32_t &n_pixels)
+{
     /*
      * @brief Carga la semilla y los resultados del enmascaramiento desde un archivo de texto.
      *
@@ -311,7 +474,7 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixel
     archivo >> seed;
 
     // Leer y almacenar los valores RGB uno por uno en el arreglo dinámico
-    for (int i = 0; i < n_pixels * 3; i += 3) {
+    for (uint32_t i = 0; i < n_pixels * 3; i += 3) {
         archivo >> r >> g >> b;
         RGB[i] = r;
         RGB[i + 1] = g;

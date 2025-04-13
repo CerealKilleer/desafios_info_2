@@ -42,7 +42,7 @@ using namespace std;
 
 int main()
 {
-    probar_operaciones();
+    procesar_imagenes(7);
     return 0;
 }
 

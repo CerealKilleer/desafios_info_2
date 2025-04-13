@@ -30,8 +30,215 @@ void pruebas_bitwise_byte_ops(void)
     cout << "Todas las pruebas superadas" << endl;
 }
 
+void apply_complete_shr(uint8_t *img_data, const uint8_t n, const uint16_t width, const uint16_t hight)
+{
+    /**
+     * @brief Aplica un desplazamiento a la derecha (ROL) a cada byte de una imagen.
+     *
+     * Esta función recorre todos los bytes de la imagen y les aplica un desplazamiento
+     * a la derecha del número de bits especificado. El resultado se sobrescribe
+     * directamente sobre los datos originales.
+     *
+     * @param img_data Puntero a los datos de la imagen que serán modificados.
+     * @param n Cantidad de bits a desplazar a la derecha (0–8).
+     * @param width Ancho de la imagen en píxeles.
+     * @param hight Alto de la imagen en píxeles.
+     */
+    for (uint32_t i=0; i<width*hight*RGB_CHANNELS; i++)
+        img_data[i] = shift_left_byte(img_data[i], n);
+}
+
+void apply_complete_shl(uint8_t *img_data, const uint8_t n, const uint16_t width, const uint16_t hight)
+{
+    /**
+     * @brief Aplica un desplazamiento a la izquierda (ROL) a cada byte de una imagen.
+     *
+     * Esta función recorre todos los bytes de la imagen y les aplica un desplazamiento
+     * a la izquierda del número de bits especificado. El resultado se sobrescribe
+     * directamente sobre los datos originales.
+     *
+     * @param img_data Puntero a los datos de la imagen que serán modificados.
+     * @param n Cantidad de bits a desplazar a la izquierda (0–8).
+     * @param width Ancho de la imagen en píxeles.
+     * @param hight Alto de la imagen en píxeles.
+     */
+    for (uint32_t i=0; i<width*hight*RGB_CHANNELS; i++)
+        img_data[i] = shift_left_byte(img_data[i], n);
+}
+
+void apply_complete_rol(uint8_t *img_data, const uint8_t n, const uint16_t width, const uint16_t hight)
+{
+    /**
+     * @brief Aplica una rotación a la izquierda (ROL) a cada byte de una imagen.
+     *
+     * Esta función recorre todos los bytes de la imagen y les aplica una rotación
+     * a la izquierda del número de bits especificado. El resultado se sobrescribe
+     * directamente sobre los datos originales.
+     *
+     * @param img_data Puntero a los datos de la imagen que serán modificados.
+     * @param n Cantidad de bits a rotar a la izquierda (0–8).
+     * @param width Ancho de la imagen en píxeles.
+     * @param hight Alto de la imagen en píxeles.
+     */
+    for (uint32_t i=0; i<width*hight*RGB_CHANNELS; i++)
+        img_data[i] = rotate_left_byte(img_data[i], n);
+}
+
+void apply_complete_ror(uint8_t *img_data, const uint8_t n, const uint16_t width, const uint16_t hight)
+{
+    /**
+     * @brief Aplica una rotación a la derecha (ROR) a cada byte de una imagen.
+     *
+     * Esta función recorre todos los bytes de la imagen y les aplica una rotación
+     * a la derecha del número de bits especificado. El resultado se sobrescribe
+     * directamente sobre los datos originales.
+     *
+     * @param img_data Puntero a los datos de la imagen que serán modificados.
+     * @param n Cantidad de bits a rotar a la derecha (0–8).
+     * @param width Ancho de la imagen en píxeles.
+     * @param hight Alto de la imagen en píxeles.
+     */
+
+    for (uint32_t i=0; i<width*hight*RGB_CHANNELS; i++)
+        img_data[i] = rotate_right_byte(img_data[i], n);
+}
+
+void apply_complete_xor(uint8_t *img_data, const uint8_t *img_noisy_data, const uint16_t width, const uint16_t hight)
+{
+    /**
+     * @brief Aplica una operación XOR byte a byte entre dos imágenes.
+     *
+     * Esta función realiza un XOR entre cada byte de los datos de imagen originales y los datos
+     * de una imagen ruidosa, escribiendo el resultado directamente sobre los datos originales.
+     * Se asume que ambas imágenes tienen el mismo tamaño y número de canales RGB.
+     *
+     * @param img_data Puntero a los datos de la imagen original. Será sobrescrita con el resultado.
+     * @param img_noisy_data Puntero a los datos de la imagen con ruido.
+     * @param width Ancho de la imagen en píxeles.
+     * @param hight Alto de la imagen en píxeles.
+     */
+    for (uint32_t i=0; i<width*hight*RGB_CHANNELS; i++)
+        img_data[i] = xor_byte(img_data[i], img_noisy_data[i]);
+}
+
+uint32_t validate_shr(const uint8_t *img_data, const uint8_t *reversed_mask,
+                      const uint32_t seed, const uint32_t mask_size, const uint8_t n)
+{
+    /**
+     * @brief Valida la operación de desplazamiento a la derecha sobre una máscara revertida
+     *        comparándola con una imagen original mediante la distancia de Hamming.
+     *
+     * Esta función aplica un desplazamiento de bits a la derecha sobre cada byte de la máscara revertida,
+     * y luego calcula la distancia de Hamming respecto al byte correspondiente de la imagen original
+     * desplazada por un valor de semilla (`seed`). La suma total de distancias de Hamming se devuelve
+     * como una medida de error o diferencia entre la imagen y la máscara procesada.
+     *
+     * @param img_data Puntero a los datos de la imagen original.
+     * @param reversed_mask Puntero a los datos de la máscara revertida.
+     * @param seed Desplazamiento aplicado sobre los datos de la imagen.
+     * @param mask_size Tamaño de la máscara en píxeles (sin contar canales de color).
+     * @param n Número de bits por los cuales se desplaza a la derecha cada byte de la máscara.
+     * @return Distancia total de Hamming entre la máscara desplazada y la imagen, a partir del desplazamiento.
+     */
+    uint32_t total_hamm_dist = 0;
+
+    for (uint32_t i=0; i < mask_size*RGB_CHANNELS; i++) {
+        total_hamm_dist += hamming_distance(
+            shift_left_byte(reversed_mask[i], n), img_data[i + seed]);
+    }
+
+    return total_hamm_dist;
+}
+
+uint32_t validate_shl(const uint8_t *img_data, const uint8_t *reversed_mask,
+                      const uint32_t seed, const uint32_t mask_size, const uint8_t n)
+{
+    /**
+     * @brief Valida la operación de desplazamiento a la izquierda sobre una máscara revertida
+     *        comparándola con una imagen original mediante la distancia de Hamming.
+     *
+     * Esta función aplica un desplazamiento de bits a la izquierda sobre cada byte de la máscara revertida,
+     * y luego calcula la distancia de Hamming respecto al byte correspondiente de la imagen original
+     * desplazada por un valor de semilla (`seed`). La suma total de distancias de Hamming se devuelve
+     * como una medida de error o diferencia entre la imagen y la máscara procesada.
+     *
+     * @param img_data Puntero a los datos de la imagen original.
+     * @param reversed_mask Puntero a los datos de la máscara revertida.
+     * @param seed Desplazamiento aplicado sobre los datos de la imagen.
+     * @param mask_size Tamaño de la máscara en píxeles (sin contar canales de color).
+     * @param n Número de bits por los cuales se desplaza a la izquierda cada byte de la máscara.
+     * @return Distancia total de Hamming entre la máscara desplazada y la imagen, a partir del desplazamiento.
+     */
+    uint32_t total_hamm_dist = 0;
+
+    for (uint32_t i=0; i < mask_size*RGB_CHANNELS; i++) {
+        total_hamm_dist += hamming_distance(
+            shift_left_byte(reversed_mask[i], n), img_data[i + seed]);
+    }
+
+    return total_hamm_dist;
+}
+
+uint32_t validate_rol(const uint8_t *img_data, const uint8_t *reversed_mask,
+                             const uint32_t seed, const uint32_t mask_size, const uint8_t n)
+{
+    /**
+     * @brief Valida la operación de rotación a la izquierda sobre una máscara revertida
+     *        comparándola con una imagen original mediante la distancia de Hamming.
+     *
+     * Esta función aplica una rotación de bits a la izquierda sobre cada byte de la máscara revertida,
+     * y luego calcula la distancia de Hamming respecto al byte correspondiente de la imagen original
+     * desplazada por un valor de semilla (`seed`). La suma total de distancias de Hamming se devuelve
+     * como una medida de error o diferencia entre la imagen y la máscara procesada.
+     *
+     * @param img_data Puntero a los datos de la imagen original.
+     * @param reversed_mask Puntero a los datos de la máscara revertida.
+     * @param seed Desplazamiento aplicado sobre los datos de la imagen.
+     * @param mask_size Tamaño de la máscara en píxeles (sin contar canales de color).
+     * @param n Número de bits por los cuales se rota a la izquierda cada byte de la máscara.
+     * @return Distancia total de Hamming entre la máscara rotada y la imagen, a partir del desplazamiento.
+     */
+    uint32_t total_hamm_dist = 0;
+
+    for (uint32_t i=0; i < mask_size*RGB_CHANNELS; i++) {
+        total_hamm_dist += hamming_distance(
+            rotate_left_byte(reversed_mask[i], n), img_data[i + seed]);
+    }
+
+    return total_hamm_dist;
+}
+
+uint32_t validate_ror(const uint8_t *img_data, const uint8_t *reversed_mask,
+                      const uint32_t seed, const uint32_t mask_size, const uint8_t n)
+{
+    /**
+     * @brief Valida la operación de rotación a la derecha sobre una máscara revertida
+     *        comparándola con una imagen original mediante la distancia de Hamming.
+     *
+     * Esta función aplica una rotación de bits a la derecha sobre cada byte de la máscara revertida,
+     * y luego calcula la distancia de Hamming respecto al byte correspondiente de la imagen original
+     * desplazada por un valor de semilla (`seed`). La suma total de distancias de Hamming se devuelve
+     * como una medida de error o diferencia entre la imagen y la máscara procesada.
+     *
+     * @param img_data Puntero a los datos de la imagen original.
+     * @param reversed_mask Puntero a los datos de la máscara revertida.
+     * @param seed Desplazamiento aplicado sobre los datos de la imagen.
+     * @param mask_size Tamaño de la máscara en píxeles (sin contar canales de color).
+     * @param n Número de bits por los cuales se rota a la derecha cada byte de la máscara.
+     * @return Distancia total de Hamming entre la máscara rotada y la imagen, a partir del desplazamiento.
+     */
+    uint32_t total_hamm_dist = 0;
+
+    for (uint32_t i=0; i < mask_size*RGB_CHANNELS; i++) {
+        total_hamm_dist += hamming_distance(
+            rotate_right_byte(reversed_mask[i], n), img_data[i + seed]);
+    }
+
+    return total_hamm_dist;
+}
+
 uint32_t validate_xor(const uint8_t *img_data, const uint8_t *noisy_img_data,
-                    const uint8_t *reversed_mask, const int seed, const int mask_size)
+                    const uint8_t *reversed_mask, const uint32_t seed, const uint32_t mask_size)
 {
     /**
      * @brief Valida el desciframiento comparando la imagen transformada y la ruidosa.

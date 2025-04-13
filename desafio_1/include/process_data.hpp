@@ -1,12 +1,9 @@
 #ifndef PROCESS_DATA_HPP
 #define PROCESS_DATA_HPP
-    #include <QCoreApplication>
-    #include <QImage>
-    uint8_t *reverse_mask(const uint32_t *, const uint8_t *, const int);
-    unsigned char* loadPixels(QString input, int &width, int &height);
-    bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
-    unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
-    uint8_t *get_reversed_mask(const char *, const uint8_t *, int &, int &);
-    int app_prueba();
-    void probar_operaciones();
+    #include <stdint.h>
+    unsigned int* loadSeedMasking(const char* nombreArchivo, uint32_t &seed, uint32_t &n_pixels);
+    bool exportImage(unsigned char* pixelData, uint16_t width, uint16_t height, QString archivoSalida);
+    unsigned char* loadPixels(QString input, uint16_t &width, uint16_t &height);
+
+    void procesar_imagenes(uint16_t n);
 #endif // PROCESS_DATA_HPP
