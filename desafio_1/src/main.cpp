@@ -42,7 +42,7 @@ using namespace std;
 
 int main()
 {
-    procesar_imagenes(7);
+    app_img(7);
     return 0;
 }
 

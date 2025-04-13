@@ -9,7 +9,7 @@
 
 using namespace std;
 
-static uint32_t aplicar_operaciones(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
+static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
                                     const uint32_t seed, const uint32_t num_pixels, uint8_t &op_code);
 static uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_data, uint32_t &seed, uint32_t &n_pixels);
 static uint8_t *reverse_mask(const uint32_t *bytes_masked, const uint8_t *mask, const uint32_t size);
@@ -73,9 +73,31 @@ int app_prueba()
 }
 */
 
-void procesar_imagenes(uint16_t n)
+void app_img(uint16_t n)
 {
-    //Cargar la imagen máscara
+    /**
+     * @brief Aplica un proceso de desenmascaramiento y reversión de transformaciones bit a bit sobre una imagen codificada.
+     *
+     * Esta función realiza `n` iteraciones de reversión sobre una imagen (`I_D.bmp`) que ha sido sometida a operaciones de
+     * enmascaramiento y transformaciones binarias. Utiliza una imagen de referencia (`I_M.bmp`) y una máscara (`M.bmp`),
+     * junto con archivos de datos de enmascaramiento secuenciales (`M(n-1).txt`), para deshacer paso a paso las transformaciones.
+     *
+     * En cada iteración se realiza:
+     * - Carga y validación de los datos de máscara y semilla desde el archivo correspondiente.
+     * - Cálculo de la operación aplicada mediante similitud con la imagen original enmascarada.
+     * - Aplicación de la operación inversa correspondiente a la imagen transformada.
+     *
+     * Finalmente, se exporta la imagen restaurada como `I_O.bmp`.
+     *
+     * @param n Número de transformaciones (y archivos Mx.txt) a revertir. Se asume que las transformaciones fueron aplicadas en orden.
+     *
+     * @note Esta función depende de otras funciones auxiliares como `loadPixels`, `get_reversed_mask`, `aplicar_operaciones`,
+     * `reverse_operations` y `exportImage`. También se apoya en las constantes globales como `RGB_CHANNELS` y `MAX_SIMILARITY`.
+     *
+     * @warning Si algún archivo no puede abrirse o si las dimensiones de las imágenes son inconsistentes,
+     * la función se aborta inmediatamente liberando la memoria utilizada hasta ese momento.
+     */
+
     uint16_t img_width = 0;
     uint16_t img_height = 0;
     uint16_t mask_width = 0;
@@ -138,7 +160,7 @@ void procesar_imagenes(uint16_t n)
             break;
         }
 
-        op_n = aplicar_operaciones(i, img_data, img_noisy_data, reversed_mask, seed, num_pixels, op_code);
+        op_n = apply_ops(i, img_data, img_noisy_data, reversed_mask, seed, num_pixels, op_code);
         reverse_operations(img_data, img_noisy_data, img_width, img_height, op_code, op_n);
 
         delete[] reversed_mask;
@@ -153,32 +175,108 @@ void procesar_imagenes(uint16_t n)
 static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
                                const uint16_t width, const uint16_t hight, const uint8_t op, const uint8_t n)
 {
+    /**
+     * @brief Aplica la operación inversa correspondiente a una imagen procesada para restaurar sus datos originales.
+     *
+     * Esta función utiliza el código de operación `op` y la cantidad de bits `n` para aplicar la operación inversa adecuada
+     * sobre los datos de la imagen (`img_data`), con el objetivo de revertir los efectos de una transformación previa.
+     *
+     * Para la operación XOR, se utiliza también la imagen ruidosa original (`img_noisy_data`). Para rotaciones y desplazamientos,
+     * se invoca la operación inversa correspondiente (por ejemplo, si fue una rotación a la derecha, se aplica una a la izquierda).
+     *
+     * @param img_data Puntero a los datos de la imagen que será modificada in-place para revertir la operación.
+     * @param img_noisy_data Puntero a los datos originales ruidosos usados para revertir la operación XOR.
+     * @param width Ancho de la imagen (en píxeles).
+     * @param hight Alto de la imagen (en píxeles).
+     * @param op Código de la operación original que se desea revertir (XOR, ROR, ROL, SHL, SHR).
+     * @param n Cantidad de bits utilizados originalmente en la operación (usado para rotaciones/desplazamientos).
+     */
+
     switch(op) {
     case XOR_OP:
         apply_complete_xor(img_data, img_noisy_data, width, hight);
         break;
     case ROR_OP:
-        apply_complete_rol(img_data, n, width, hight);
+        apply_rotate_shift_process(rotate_left_byte, img_data, n, width, hight);
         break;
     case ROL_OP:
-        apply_complete_ror(img_data, n, width, hight);
+        apply_rotate_shift_process(rotate_right_byte, img_data, n, width, hight);
         break;
     case SHR_OP:
-        apply_complete_shl(img_data, n, width, hight);
+        apply_rotate_shift_process(shift_left_byte, img_data, n, width, hight);
         break;
     case SHL_OP:
-        apply_complete_shr(img_data, n, width, hight);
+        apply_rotate_shift_process(shift_right_byte, img_data, n, width, hight);
         break;
     default:
         cout << "Valor de operación desconocido" << endl;
     }
 }
 
-static uint32_t aplicar_operaciones(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
+static uint8_t validate_ro_sh(uint8_t (*op)(uint8_t, uint8_t), const uint8_t *img_data,
+                                const uint8_t *reversed_mask, const uint32_t seed, const uint32_t num_pixels,
+                                uint8_t &op_code, uint32_t &max_op_sim, uint8_t curr_op_code, uint8_t curr_n_bits)
+{
+    /**
+     * @brief Evalúa múltiples desplazamientos o rotaciones sobre una máscara y determina la mejor configuración.
+     *
+     * Esta función aplica una operación bit a bit (`op`) sobre los datos de la máscara invertida (`reversed_mask`)
+     * para cada posible cantidad de bits (de 0 a 8). Luego compara los resultados con los datos originales de imagen
+     * (`img_data`) utilizando la función `validate_rotate_shift_process` y calcula la similitud (por ejemplo, mediante
+     * la distancia de Hamming).
+     *
+     * Si una configuración proporciona una mejor similitud (menor distancia), se actualizan los parámetros de salida
+     * correspondientes: `max_op_sim`, `op_code` y el número de bits óptimo (`op_n`).
+     *
+     * @param op Puntero a una función que realiza una operación bit a bit entre dos valores uint8_t (por ejemplo, rotación o desplazamiento).
+     * @param img_data Puntero al arreglo con los datos de la imagen original.
+     * @param reversed_mask Puntero al arreglo con la máscara invertida que será procesada.
+     * @param seed Índice base en `img_data` desde el cual se iniciará la comparación.
+     * @param num_pixels Número de píxeles (sin contar canales RGB) a procesar.
+     * @param op_code Referencia a una variable donde se almacenará el código de la operación si se encuentra una mejor.
+     * @param max_op_sim Referencia a la variable que contiene la mejor similitud encontrada hasta el momento (valor mínimo).
+     * @param curr_op_code Código de la operación actual que se está evaluando.
+     * @param curr_n_bits Número de bits inicial para la operación actual.
+     * @return El número de bits (`op_n`) que produce la mayor similitud entre los datos procesados y los datos originales.
+     */
+
+    uint8_t op_n = curr_n_bits;
+
+    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
+        uint32_t op_sim = validate_rotate_shift_process(op, img_data, reversed_mask, seed, num_pixels, i);
+        if ((op_sim == MAX_SIMILARITY) || (op_sim < max_op_sim)) {
+            max_op_sim = op_sim;
+            op_code = curr_op_code;
+            op_n = i;
+        }
+    }
+
+    return op_n;
+}
+
+static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
                                     const uint32_t seed, const uint32_t num_pixels, uint8_t &op_code)
 {
+    /**
+     * @brief Determina qué operación bit a bit aplicada a una máscara invertida genera la mayor similitud con una imagen ruidosa.
+     *
+     * Esta función prueba diferentes operaciones bit a bit (XOR, rotaciones y desplazamientos) sobre una máscara invertida
+     * para encontrar la que produce mayor similitud con una imagen ruidosa (`img_noisy`) en comparación con la imagen original (`img_data`).
+     *
+     * La similitud se calcula usando funciones como `validate_xor` y `validate_ro_sh`, y se mide mediante una métrica como la
+     * distancia de Hamming. Si se encuentra una coincidencia perfecta (`MAX_SIMILARITY`), se retorna inmediatamente.
+     *
+     * @param op Índice o identificador de la operación que se está evaluando (usado solo para propósitos de impresión).
+     * @param img_data Puntero al arreglo que contiene los datos originales de la imagen limpia.
+     * @param img_noisy Puntero al arreglo con la imagen ruidosa que se quiere comparar.
+     * @param reversed_mask Puntero a la máscara invertida que se usará para probar las operaciones.
+     * @param seed Índice desde el cual se empezará a comparar en la imagen.
+     * @param num_pixels Número de píxeles a evaluar (sin contar canales RGB).
+     * @param op_code Referencia a una variable donde se almacenará el código de la operación con mayor similitud.
+     * @return El número de bits usados en la operación que dio mayor similitud (para XOR retorna un valor dummy `DUMMY_N`).
+     */
+
     uint32_t max_op_sim = 0;
-    uint32_t op_sim = 0;
     uint8_t op_n = 0;
 
     //Aplicar test para XOR
@@ -191,57 +289,34 @@ static uint32_t aplicar_operaciones(const int32_t op, const uint8_t *img_data, c
     }
 
     //Aplicar test para ROR
-    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
-        op_sim = validate_ror(img_data, reversed_mask, seed, num_pixels, i);
-        if (op_sim == MAX_SIMILARITY) {
-            cout << "La operación #" << op << " fue: " << "Rotacion a derecha de " << (uint32_t)i << " bits" << endl;
-            op_code = ROR_OP;
-            return i;
-        } else if (op_sim < max_op_sim) {
-            op_code = ROR_OP;
-            op_n = i;
-        }
+    op_n = validate_ro_sh(rotate_right_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, ROR_OP, op_n);
+    if (max_op_sim == MAX_SIMILARITY) {
+        cout << "La operación #" << op << " fue: " << "rotación a la derecha de " << (uint32_t)op_n << " bits" << endl;
+        return op_n;
     }
 
     //Aplicar test para ROL
-    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
-        op_sim = validate_rol(img_data, reversed_mask, seed, num_pixels, i);
-        if (op_sim == MAX_SIMILARITY) {
-            cout << "La operación #" << op << " fue: " << "Rotacion a izquierda de " << (uint32_t)i << " bits" << endl;
-            op_code = ROL_OP;
-            return i;
-        } else if (op_sim < max_op_sim) {
-            op_code = ROL_OP;
-            op_n = i;
-        }
+    op_n = validate_ro_sh(rotate_left_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, ROL_OP, op_n);
+    if (max_op_sim == MAX_SIMILARITY) {
+        cout << "La operación #" << op << " fue: " << "rotación a la izquierda de " << (uint32_t)op_n << " bits" << endl;
+        return op_n;
     }
 
-    //Aplicar test para SHIFT_L
-    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
-        op_sim = validate_shl(img_data, reversed_mask, seed, num_pixels, i);
-        if (op_sim == MAX_SIMILARITY) {
-            cout << "La operación #" << op << " fue: " << "Desplazamiento a izquierda de " << (uint32_t)i << " bits" << endl;
-            op_code = SHL_OP;
-            return i;
-        } else if (op_sim < max_op_sim) {
-            op_code = SHL_OP;
-            op_n = i;
-        }
+    //Aplicar test para SHL
+    op_n = validate_ro_sh(shift_left_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, SHL_OP, op_n);
+    if (max_op_sim == MAX_SIMILARITY) {
+        cout << "La operación #" << op << " fue: " << "desplazamiento a la izquierda de " << (uint32_t)op_n << " bits" << endl;
+        return op_n;
     }
 
-    //Aplicar test para SHIFT_R
-    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
-        op_sim = validate_shr(img_data, reversed_mask, seed, num_pixels, i);
-        if (op_sim == MAX_SIMILARITY) {
-            cout << "La operación #" << op << " fue: " << "Desplazamiento a derecha de " << (uint32_t)i << " bits" << endl;
-            op_code = SHR_OP;
-            return i;
-        } else if (op_sim < max_op_sim) {
-            op_code = SHR_OP;
-            op_n = i;
-        }
+    //Aplicar test para SHR
+    op_n = validate_ro_sh(shift_right_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, SHR_OP, op_n);
+    if (max_op_sim == MAX_SIMILARITY) {
+        cout << "La operación #" << op << " fue: " << "desplazamiento a la derecha de " << (uint32_t)op_n << " bits" << endl;
+        return op_n;
     }
 
+    //Si no se alcanzó similitud exacta
     switch(op_code) {
     case SHL_OP:
         cout << "Operación de máxima similitud: " << "Desplazamiento a izquierda de: " << op_n << " bits" << endl;
