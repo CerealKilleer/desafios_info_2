@@ -15,64 +15,9 @@ static uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *
 static uint8_t *reverse_mask(const uint32_t *bytes_masked, const uint8_t *mask, const uint32_t size);
 static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
                                const uint16_t width, const uint16_t hight, const uint8_t op, const uint8_t n);
-
-/*
-int app_prueba()
-{
-    // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
-    QString archivoEntrada = "I_O.bmp";
-    QString archivoSalida = "I_D.bmp";
-
-    // Variables para almacenar las dimensiones de la imagen
-    int height = 0;
-    int width = 0;
-
-    // Carga la imagen BMP en memoria dinámica y obtiene ancho y alto
-    unsigned char *pixelData = loadPixels(archivoEntrada, width, height);
-
-    // Simula una modificación de la imagen asignando valores RGB incrementales
-    // (Esto es solo un ejemplo de manipulación artificial)
-    for (int i = 0; i < width * height * 3; i += 3) {
-        pixelData[i] = i;     // Canal rojo
-        pixelData[i + 1] = i; // Canal verde
-        pixelData[i + 2] = i; // Canal azul
-    }
-
-    // Exporta la imagen modificada a un nuevo archivo BMP
-    bool exportI = exportImage(pixelData, width, height, archivoSalida);
-
-    // Muestra si la exportación fue exitosa (true o false)
-    cout << exportI << endl;
-
-    // Libera la memoria usada para los píxeles
-    delete[] pixelData;
-    pixelData = nullptr;
-
-    // Variables para almacenar la semilla y el número de píxeles leídos del archivo de enmascaramiento
-    int seed = 0;
-    int n_pixels = 0;
-
-    // Carga los datos de enmascaramiento desde un archivo .txt (semilla + valores RGB)
-    unsigned int *maskingData = loadSeedMasking("M1.txt", seed, n_pixels);
-
-    // Muestra en consola los primeros valores RGB leídos desde el archivo de enmascaramiento
-    for (int i = 0; i < n_pixels * 3; i += 3) {
-        cout << "Pixel " << i / 3 << ": ("
-             << maskingData[i] << ", "
-             << maskingData[i + 1] << ", "
-             << maskingData[i + 2] << ")" << endl;
-    }
-
-    // Libera la memoria usada para los datos de enmascaramiento
-    if (maskingData != nullptr){
-        delete[] maskingData;
-        maskingData = nullptr;
-    }
-
-    return 0; // Fin del programa
-}
-*/
-
+static uint8_t validate_ro_sh(uint8_t (*op)(uint8_t, uint8_t), const uint8_t *img_data,
+                              const uint8_t *reversed_mask, const uint32_t seed, const uint32_t num_pixels,
+                              uint8_t &op_code, uint32_t &max_op_sim, uint8_t curr_op_code, uint8_t curr_n_bits);
 void app_img(uint16_t n)
 {
     /**
@@ -106,6 +51,7 @@ void app_img(uint16_t n)
     uint16_t img_noisy_height = 0;
     uint8_t op_code = 0;
     uint8_t op_n = 0;
+    bool ok_img = true;
 
     uint8_t *mask_data = loadPixels("M.bmp", mask_width, mask_height);
 
@@ -149,14 +95,17 @@ void app_img(uint16_t n)
 
         //Se aplica el desenmascaramiento
         uint8_t *reversed_mask = get_reversed_mask(masked_data_path.data(), mask_data, seed, num_pixels);
-        if (reversed_mask == nullptr)
+        if (reversed_mask == nullptr) {
+            ok_img = false;
             break;
+        }
 
         if ((num_pixels > (img_width*img_height))
             || num_pixels != (mask_width*mask_height)) {
 
             cout << "La imagen máscara y el archivo de máscara son inconsistentes" << endl;
             delete[] reversed_mask;
+            ok_img = false;
             break;
         }
 
@@ -166,7 +115,9 @@ void app_img(uint16_t n)
         delete[] reversed_mask;
     }
 
-    exportImage(img_data, img_width, img_height, "I_O.bmp");
+    if (ok_img)
+        exportImage(img_data, img_width, img_height, "I_O.bmp");
+
     delete[] mask_data;
     delete[] img_noisy_data;
     delete[] img_data;
@@ -323,6 +274,9 @@ static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_
         break;
     case SHR_OP:
         cout << "Operación de máxima similitud: " << "Desplazamiento a derecha de: " << op_n << " bits" << endl;
+        break;
+    default:
+        cout << "No se detectó ninguna operación" << endl;
         break;
     }
     return op_n;
