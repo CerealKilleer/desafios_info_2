@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void apply_rotate_shift_process(uint8_t (*op)(const uint8_t, const uint8_t),
+void apply_complete_rotate_shift(uint8_t (*op)(const uint8_t, const uint8_t),
                                 uint8_t *img_data, const uint8_t n, const uint16_t width, const uint16_t hight)
 {
     /**

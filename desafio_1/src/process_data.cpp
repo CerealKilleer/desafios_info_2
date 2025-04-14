@@ -148,16 +148,16 @@ static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
         apply_complete_xor(img_data, img_noisy_data, width, hight);
         break;
     case ROR_OP:
-        apply_rotate_shift_process(rotate_left_byte, img_data, n, width, hight);
+        apply_complete_rotate_shift(rotate_left_byte, img_data, n, width, hight);
         break;
     case ROL_OP:
-        apply_rotate_shift_process(rotate_right_byte, img_data, n, width, hight);
+        apply_complete_rotate_shift(rotate_right_byte, img_data, n, width, hight);
         break;
     case SHR_OP:
-        apply_rotate_shift_process(shift_left_byte, img_data, n, width, hight);
+        apply_complete_rotate_shift(shift_left_byte, img_data, n, width, hight);
         break;
     case SHL_OP:
-        apply_rotate_shift_process(shift_right_byte, img_data, n, width, hight);
+        apply_complete_rotate_shift(shift_right_byte, img_data, n, width, hight);
         break;
     default:
         cout << "Valor de operación desconocido" << endl;
