@@ -1,5 +1,5 @@
 /*
- * Programa que implementa la solución para la primera práctica informática 2.
+ * Programa que implementa la solución para el primer reto de informática 2.
  * El software utiliza 3 librerías de creación propia, se utilizó Chat-GPT para
  * generar comentarios compatibles con Doxygen.
  * Las imágenes deben agregarse en el mismo directorio donde está el ejecutable de la aplicación
