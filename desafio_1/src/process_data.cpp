@@ -273,16 +273,16 @@ static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_
         cout << "Operación #" << op << " de máxima similitud: " << "XOR" << endl;
         break;
     case ROL_OP:
-        cout << "Operación #" << op << " de máxima similitud: " << "Rotacion a izquierda de: " << op_n << " bits" << endl;
+        cout << "Operación #" << op << " de máxima similitud: " << "Rotacion a izquierda de: " << (uint32_t)op_n << " bits" << endl;
         break;
     case ROR_OP:
-        cout << "Operación #" << op << " de máxima similitud: " << "Rotacion a derecha de: " << op_n << " bits" << endl;
+        cout << "Operación #" << op << " de máxima similitud: " << "Rotacion a derecha de: " << (uint32_t)op_n << " bits" << endl;
         break;
     case SHL_OP:
-        cout << "Operación #" << op <<" de máxima similitud: " << "Desplazamiento a izquierda de: " << op_n << " bits" << endl;
+        cout << "Operación #" << op <<" de máxima similitud: " << "Desplazamiento a izquierda de: " << (uint32_t)op_n << " bits" << endl;
         break;
     case SHR_OP:
-        cout << "Operación #" << op << " de máxima similitud: " << "Desplazamiento a derecha de: " << op_n << " bits" << endl;
+        cout << "Operación #" << op << " de máxima similitud: " << "Desplazamiento a derecha de: " << (uint32_t)op_n << " bits" << endl;
         break;
     default:
         cout << "No se detectó ninguna operación" << endl;
