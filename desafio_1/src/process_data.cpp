@@ -282,7 +282,7 @@ static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_
         cout << "Operación #" << op <<" de máxima similitud: " << "Desplazamiento a izquierda de: " << op_n << " bits" << endl;
         break;
     case SHR_OP:
-        cout << "Operación #" << op << "de máxima similitud: " << "Desplazamiento a derecha de: " << op_n << " bits" << endl;
+        cout << "Operación #" << op << " de máxima similitud: " << "Desplazamiento a derecha de: " << op_n << " bits" << endl;
         break;
     default:
         cout << "No se detectó ninguna operación" << endl;
@@ -523,9 +523,10 @@ unsigned int* loadSeedMasking(const char* nombreArchivo, uint32_t &seed, uint32_
     archivo.close();
 
     // Mostrar información de control en consola
+    /*
     cout << "Semilla: " << seed << endl;
     cout << "Cantidad de píxeles leídos: " << n_pixels << endl;
-
+    */
     // Retornar el puntero al arreglo con los datos RGB
     return RGB;
 }
