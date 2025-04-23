@@ -164,46 +164,6 @@ static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
     }
 }
 
-static uint8_t validate_ro_sh(uint8_t (*op)(uint8_t, uint8_t), const uint8_t *img_data,
-                                const uint8_t *reversed_mask, const uint32_t seed, const uint32_t num_pixels,
-                                uint8_t &op_code, uint32_t &max_op_sim, uint8_t curr_op_code, uint8_t curr_n_bits)
-{
-    /**
-     * @brief Evalúa múltiples desplazamientos o rotaciones sobre una máscara y determina la mejor configuración.
-     *
-     * Esta función aplica una operación bit a bit (`op`) sobre los datos de la máscara invertida (`reversed_mask`)
-     * para cada posible cantidad de bits (de 0 a 8). Luego compara los resultados con los datos originales de imagen
-     * (`img_data`) utilizando la función `validate_rotate_shift_process` y calcula la similitud (por ejemplo, mediante
-     * la distancia de Hamming).
-     *
-     * Si una configuración proporciona una mejor similitud (menor distancia), se actualizan los parámetros de salida
-     * correspondientes: `max_op_sim`, `op_code` y el número de bits óptimo (`op_n`).
-     *
-     * @param op Puntero a una función que realiza una operación bit a bit entre dos valores uint8_t (por ejemplo, rotación o desplazamiento).
-     * @param img_data Puntero al arreglo con los datos de la imagen original.
-     * @param reversed_mask Puntero al arreglo con la máscara invertida que será procesada.
-     * @param seed Índice base en `img_data` desde el cual se iniciará la comparación.
-     * @param num_pixels Número de píxeles (sin contar canales RGB) a procesar.
-     * @param op_code Referencia a una variable donde se almacenará el código de la operación si se encuentra una mejor.
-     * @param max_op_sim Referencia a la variable que contiene la mejor similitud encontrada hasta el momento (valor mínimo).
-     * @param curr_op_code Código de la operación actual que se está evaluando.
-     * @param curr_n_bits Número de bits inicial para la operación actual.
-     * @return El número de bits (`op_n`) que produce la mayor similitud entre los datos procesados y los datos originales.
-     */
-
-    uint8_t op_n = curr_n_bits;
-
-    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
-        uint32_t op_sim = validate_rotate_shift_process(op, img_data, reversed_mask, seed, num_pixels, i);
-        if ((op_sim == MAX_SIMILARITY) || (op_sim < max_op_sim)) {
-            max_op_sim = op_sim;
-            op_code = curr_op_code;
-            op_n = i;
-        }
-    }
-
-    return op_n;
-}
 
 static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
                                     const uint32_t seed, const uint32_t num_pixels, uint8_t &op_code)
@@ -288,6 +248,47 @@ static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_
         cout << "No se detectó ninguna operación" << endl;
         break;
     }
+    return op_n;
+}
+
+static uint8_t validate_ro_sh(uint8_t (*op)(uint8_t, uint8_t), const uint8_t *img_data,
+                              const uint8_t *reversed_mask, const uint32_t seed, const uint32_t num_pixels,
+                              uint8_t &op_code, uint32_t &max_op_sim, uint8_t curr_op_code, uint8_t curr_n_bits)
+{
+    /**
+     * @brief Evalúa múltiples desplazamientos o rotaciones sobre una máscara y determina la mejor configuración.
+     *
+     * Esta función aplica una operación bit a bit (`op`) sobre los datos de la máscara invertida (`reversed_mask`)
+     * para cada posible cantidad de bits (de 0 a 8). Luego compara los resultados con los datos originales de imagen
+     * (`img_data`) utilizando la función `validate_rotate_shift_process` y calcula la similitud (por ejemplo, mediante
+     * la distancia de Hamming).
+     *
+     * Si una configuración proporciona una mejor similitud (menor distancia), se actualizan los parámetros de salida
+     * correspondientes: `max_op_sim`, `op_code` y el número de bits óptimo (`op_n`).
+     *
+     * @param op Puntero a una función que realiza una operación bit a bit entre dos valores uint8_t (por ejemplo, rotación o desplazamiento).
+     * @param img_data Puntero al arreglo con los datos de la imagen original.
+     * @param reversed_mask Puntero al arreglo con la máscara invertida que será procesada.
+     * @param seed Índice base en `img_data` desde el cual se iniciará la comparación.
+     * @param num_pixels Número de píxeles (sin contar canales RGB) a procesar.
+     * @param op_code Referencia a una variable donde se almacenará el código de la operación si se encuentra una mejor.
+     * @param max_op_sim Referencia a la variable que contiene la mejor similitud encontrada hasta el momento (valor mínimo).
+     * @param curr_op_code Código de la operación actual que se está evaluando.
+     * @param curr_n_bits Número de bits inicial para la operación actual.
+     * @return El número de bits (`op_n`) que produce la mayor similitud entre los datos procesados y los datos originales.
+     */
+
+    uint8_t op_n = curr_n_bits;
+
+    for (uint8_t i=0; i <= BITS_ON_BYTE; i++) {
+        uint32_t op_sim = validate_rotate_shift_process(op, img_data, reversed_mask, seed, num_pixels, i);
+        if ((op_sim == MAX_SIMILARITY) || (op_sim < max_op_sim)) {
+            max_op_sim = op_sim;
+            op_code = curr_op_code;
+            op_n = i;
+        }
+    }
+
     return op_n;
 }
 

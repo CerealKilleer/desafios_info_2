@@ -7,7 +7,7 @@
 using namespace std;
 
 void apply_complete_rotate_shift(uint8_t (*op)(const uint8_t, const uint8_t),
-                                uint8_t *img_data, const uint8_t n, const uint16_t width, const uint16_t hight)
+                                uint8_t *img_data, const uint8_t n, const uint16_t width, const uint16_t height)
 {
     /**
      * @brief Aplica una operación bit a bit a cada byte de una imagen.
@@ -24,11 +24,11 @@ void apply_complete_rotate_shift(uint8_t (*op)(const uint8_t, const uint8_t),
      * @param width Ancho de la imagen (en píxeles).
      * @param hight Altura de la imagen (en píxeles). [Nota: considera renombrarlo a 'height']
      */
-    for (uint32_t i=0; i<width*hight*RGB_CHANNELS; i++)
+    for (uint32_t i=0; i<width*height*RGB_CHANNELS; i++)
         img_data[i] = op(img_data[i], n);
 }
 
-void apply_complete_xor(uint8_t *img_data, const uint8_t *img_noisy_data, const uint16_t width, const uint16_t hight)
+void apply_complete_xor(uint8_t *img_data, const uint8_t *img_noisy_data, const uint16_t width, const uint16_t height)
 {
     /**
      * @brief Aplica una operación XOR byte a byte entre dos imágenes.
@@ -42,7 +42,7 @@ void apply_complete_xor(uint8_t *img_data, const uint8_t *img_noisy_data, const 
      * @param width Ancho de la imagen en píxeles.
      * @param hight Alto de la imagen en píxeles.
      */
-    for (uint32_t i=0; i<width*hight*RGB_CHANNELS; i++)
+    for (uint32_t i=0; i<width*height*RGB_CHANNELS; i++)
         img_data[i] = xor_byte(img_data[i], img_noisy_data[i]);
 }
 
