@@ -9,7 +9,7 @@
 
 using namespace std;
 
-static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
+static uint8_t apply_ops(const int8_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
                                     const uint32_t seed, const uint32_t num_pixels, uint8_t &op_code);
 static uint8_t *get_reversed_mask(const char *path_masking_data, const uint8_t *mask_data, uint32_t &seed, uint32_t &n_pixels);
 static uint8_t *reverse_mask(const uint32_t *bytes_masked, const uint8_t *mask, const uint32_t size);
@@ -18,7 +18,7 @@ static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
 static uint8_t validate_ro_sh(uint8_t (*op)(uint8_t, uint8_t), const uint8_t *img_data,
                               const uint8_t *reversed_mask, const uint32_t seed, const uint32_t num_pixels,
                               uint8_t &op_code, uint32_t &max_op_sim, uint8_t curr_op_code, uint8_t curr_n_bits);
-void app_img(uint16_t n)
+void app_img(uint8_t n)
 {
     /**
      * @brief Aplica un proceso de desenmascaramiento y reversión de transformaciones bit a bit sobre una imagen codificada.
@@ -86,7 +86,7 @@ void app_img(uint16_t n)
     }
 
     //Se aplicarán las n transformaciones
-    for (int32_t i=n; i > 0; i--) {
+    for (int8_t i=n; i > 0; i--) {
         //Variables para el archivo de enmascaramiento
         uint32_t seed = 0;
         uint32_t num_pixels = 0;
@@ -165,7 +165,7 @@ static void reverse_operations(uint8_t *img_data, const uint8_t *img_noisy_data,
 }
 
 
-static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
+static uint8_t apply_ops(const int8_t op, const uint8_t *img_data, const uint8_t *img_noisy, const uint8_t *reversed_mask,
                                     const uint32_t seed, const uint32_t num_pixels, uint8_t &op_code)
 {
     /**
@@ -194,7 +194,7 @@ static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_
     max_op_sim = validate_xor(img_data, img_noisy, reversed_mask, seed, num_pixels);
 
     if (max_op_sim == MAX_SIMILARITY) {
-        cout << "La operación #" << op << " fue: " << "XOR" << endl;
+        cout << "La operación #" << (uint32_t)op << " fue: " << "XOR" << endl;
         op_code = XOR_OP;
         return DUMMY_N;
     }
@@ -202,47 +202,47 @@ static uint8_t apply_ops(const int32_t op, const uint8_t *img_data, const uint8_
     //Aplicar test para ROR
     op_n = validate_ro_sh(rotate_right_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, ROR_OP, op_n);
     if (max_op_sim == MAX_SIMILARITY) {
-        cout << "La operación #" << op << " fue: " << "rotación a la derecha de " << (uint32_t)op_n << " bits" << endl;
+        cout << "La operación #" << (uint32_t)op << " fue: " << "rotación a la derecha de " << (uint32_t)op_n << " bits" << endl;
         return op_n;
     }
 
     //Aplicar test para ROL
     op_n = validate_ro_sh(rotate_left_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, ROL_OP, op_n);
     if (max_op_sim == MAX_SIMILARITY) {
-        cout << "La operación #" << op << " fue: " << "rotación a la izquierda de " << (uint32_t)op_n << " bits" << endl;
+        cout << "La operación #" << (uint32_t)op << " fue: " << "rotación a la izquierda de " << (uint32_t)op_n << " bits" << endl;
         return op_n;
     }
 
     //Aplicar test para SHL
     op_n = validate_ro_sh(shift_left_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, SHL_OP, op_n);
     if (max_op_sim == MAX_SIMILARITY) {
-        cout << "La operación #" << op << " fue: " << "desplazamiento a la izquierda de " << (uint32_t)op_n << " bits" << endl;
+        cout << "La operación #" << (uint32_t)op << " fue: " << "desplazamiento a la izquierda de " << (uint32_t)op_n << " bits" << endl;
         return op_n;
     }
 
     //Aplicar test para SHR
     op_n = validate_ro_sh(shift_right_byte, img_data, reversed_mask, seed, num_pixels, op_code, max_op_sim, SHR_OP, op_n);
     if (max_op_sim == MAX_SIMILARITY) {
-        cout << "La operación #" << op << " fue: " << "desplazamiento a la derecha de " << (uint32_t)op_n << " bits" << endl;
+        cout << "La operación #" << (uint32_t)op << " fue: " << "desplazamiento a la derecha de " << (uint32_t)op_n << " bits" << endl;
         return op_n;
     }
 
     //Si no se alcanzó similitud exacta
     switch(op_code) {
     case XOR_OP:
-        cout << "Operación #" << op << " de máxima similitud: " << "XOR" << endl;
+        cout << "Operación #" << (uint32_t)op << " de máxima similitud: " << "XOR" << endl;
         break;
     case ROL_OP:
-        cout << "Operación #" << op << " de máxima similitud: " << "Rotacion a izquierda de: " << (uint32_t)op_n << " bits" << endl;
+        cout << "Operación #" << (uint32_t)op << " de máxima similitud: " << "Rotacion a izquierda de: " << (uint32_t)op_n << " bits" << endl;
         break;
     case ROR_OP:
-        cout << "Operación #" << op << " de máxima similitud: " << "Rotacion a derecha de: " << (uint32_t)op_n << " bits" << endl;
+        cout << "Operación #" << (uint32_t)op << " de máxima similitud: " << "Rotacion a derecha de: " << (uint32_t)op_n << " bits" << endl;
         break;
     case SHL_OP:
-        cout << "Operación #" << op <<" de máxima similitud: " << "Desplazamiento a izquierda de: " << (uint32_t)op_n << " bits" << endl;
+        cout << "Operación #" << (uint32_t)op <<" de máxima similitud: " << "Desplazamiento a izquierda de: " << (uint32_t)op_n << " bits" << endl;
         break;
     case SHR_OP:
-        cout << "Operación #" << op << " de máxima similitud: " << "Desplazamiento a derecha de: " << (uint32_t)op_n << " bits" << endl;
+        cout << "Operación #" << (uint32_t)op << " de máxima similitud: " << "Desplazamiento a derecha de: " << (uint32_t)op_n << " bits" << endl;
         break;
     default:
         cout << "No se detectó ninguna operación" << endl;
